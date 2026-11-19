@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keera-gateway.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keera-gateway.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.gateway.autoscaling.enabled }}
+  replicas: {{ .Values.gateway.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "keera-gateway.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if not .Values.credentials.existingSecret.name }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.gateway.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "keera-gateway.labels" . | nindent 8 }}
+        {{- with .Values.gateway.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keera-gateway.serviceAccountName" . }}
+      {{- with .Values.gateway.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.gateway.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
+          env:
+            {{- with .Values.credentials.existingSecret }}
+            {{- range $name, $key := dict "KEERA_OPERATOR_KEY" .operatorSecretKey "KEERA_SECRET_KEY" .secretSecretKey }}
+            - name: {{ $name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-gateway.credentials.secretName" $ }}
+                  key: {{ ternary $key $name (not (empty $.Values.credentials.existingSecret.name)) }}
+            {{- end }}
+            {{- end }}
+            {{- if eq .Values.database.type "internal" }}
+            # pgx falls back to PGPASSWORD when the URL holds no password, so it needs no URL encoding.
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-gateway.database.passwordSecretName" . }}
+                  key: {{ include "keera-gateway.database.passwordSecretKey" . }}
+            - name: KEERA_DATABASE_URL
+              value: {{ include "keera-gateway.database.url" . | quote }}
+            {{- end }}
+            {{- with .Values.publicUrl }}
+            - name: KEERA_PUBLIC_URL
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.passkeys }}
+            {{- include "keera-gateway.passkeys.validate" . }}
+            - name: KEERA_PASSKEYS
+              value: "true"
+            {{- end }}
+            {{- with .Values.operators }}
+            - name: KEERA_OPERATORS
+              value: {{ join "," . | quote }}
+            {{- end }}
+            {{- with .Values.upstreamPrivate }}
+            - name: KEERA_UPSTREAM_PRIVATE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- with include "keera-gateway.oidc.env" . | trim }}
+            {{- . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              # The gateway listens on KEERA_ADDR, which defaults to :8080.
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          # /readyz fails while the gateway cannot reach Postgres.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          {{- with .Values.gateway.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.gateway.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.gateway.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gateway.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gateway.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.gateway.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

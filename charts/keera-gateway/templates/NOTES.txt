@@ -1,0 +1,7 @@
+{{- if .Values.publicUrl }}
+Visit {{ .Values.publicUrl }} to use keera-gateway.
+{{- else }}
+publicUrl is not set, reach keera-gateway by running:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "keera-gateway.fullname" . }} 8080:{{ .Values.gateway.service.port }}
+and visit http://127.0.0.1:8080.
+{{- end }}

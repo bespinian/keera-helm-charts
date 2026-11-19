@@ -1,0 +1,173 @@
+{{- include "keera-agents.validate" . }}
+{{- $agents := .Values.agents }}
+{{- /* Optional settings, left out when empty so keera-agents applies its own default. */}}
+{{- $optional := dict
+  "KEERA_AGENTS_PUBLIC_URL" .Values.publicUrl
+  "KEERA_AGENTS_GATEWAY_INTERNAL_URL" .Values.gateway.internalUrl
+  "KEERA_AGENTS_UPSTREAM_PRIVATE" .Values.upstreamPrivate
+  "KEERA_AGENTS_UPSTREAM_DENY" .Values.upstreamDeny
+  "KEERA_AGENTS_LOG_LEVEL" .Values.logLevel
+  "KEERA_AGENTS_LOG_FORMAT" .Values.logFormat
+  "KEERA_AGENTS_TASK_TIMEOUT" .Values.taskTimeout
+  "KEERA_AGENTS_WATCH_INTERVAL" .Values.watchInterval
+  "KEERA_AGENTS_PRICE_CPU_HOUR" .Values.prices.cpuHour
+  "KEERA_AGENTS_PRICE_MEMORY_GIB_HOUR" .Values.prices.memoryGiBHour
+  "KEERA_AGENTS_PRICE_DISK_GIB_MONTH" .Values.prices.diskGiBMonth
+  "KEERA_AGENTS_IDLE_SUSPEND" $agents.idleSuspend
+  "KEERA_AGENTS_RUNTIME_STANDARD" $agents.runtimeClasses.standard
+  "KEERA_AGENTS_RUNTIME_ISOLATED" $agents.runtimeClasses.isolated
+  "KEERA_AGENTS_RUNTIME_VM" $agents.runtimeClasses.vm
+  "KEERA_AGENTS_MIN_ISOLATION" $agents.minIsolation
+  "KEERA_AGENTS_MAX_CPU" $agents.maxCpu
+  "KEERA_AGENTS_MAX_MEMORY" $agents.maxMemory
+  "KEERA_AGENTS_MAX_DISK" $agents.maxDisk
+  "KEERA_AGENTS_STORAGE_CLASS" $agents.storageClass
+  "KEERA_AGENTS_SERVICE_ACCOUNT" $agents.serviceAccount
+  "KEERA_AGENTS_IMAGE_PULL_SECRETS" (join "," $agents.imagePullSecrets)
+  "KEERA_AGENTS_WORKSPACE_IDLE_SUSPEND" .Values.workspaces.idleSuspend
+}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "keera-agents.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.controlPlane.autoscaling.enabled }}
+  replicas: {{ .Values.controlPlane.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "keera-agents.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if not .Values.credentials.existingSecret.name }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.controlPlane.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "keera-agents.labels" . | nindent 8 }}
+        {{- with .Values.controlPlane.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "keera-agents.serviceAccountName" . }}
+      # The Kubernetes driver calls the API with this token.
+      automountServiceAccountToken: true
+      {{- with .Values.controlPlane.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          {{- with .Values.controlPlane.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
+          env:
+            {{- with .Values.credentials.existingSecret }}
+            {{- range $name, $key := dict "KEERA_AGENTS_SERVICE_KEY" .serviceSecretKey "KEERA_AGENTS_SECRET_KEY" .secretSecretKey }}
+            - name: {{ $name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-agents.credentials.secretName" $ }}
+                  key: {{ ternary $key $name (not (empty $.Values.credentials.existingSecret.name)) }}
+            {{- end }}
+            {{- end }}
+            {{- if or (and .Values.credentials.existingSecret.name .Values.credentials.existingSecret.metricsTokenSecretKey) (and (not .Values.credentials.existingSecret.name) .Values.credentials.metricsToken) }}
+            - name: KEERA_AGENTS_METRICS_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-agents.credentials.secretName" . }}
+                  key: {{ ternary .Values.credentials.existingSecret.metricsTokenSecretKey "KEERA_AGENTS_METRICS_TOKEN" (not (empty .Values.credentials.existingSecret.name)) }}
+            {{- end }}
+            {{- if eq .Values.database.type "internal" }}
+            # pgx falls back to PGPASSWORD when the URL holds no password, so it needs no URL encoding.
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-agents.database.passwordSecretName" . }}
+                  key: {{ include "keera-agents.database.passwordSecretKey" . }}
+            - name: KEERA_AGENTS_DATABASE_URL
+              value: {{ include "keera-agents.database.url" . | quote }}
+            {{- else }}
+            - name: KEERA_AGENTS_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ default (include "keera-agents.database.fullname" .) .Values.database.external.existingSecret }}
+                  key: {{ ternary .Values.database.external.existingSecretUrlKey "url" (not (empty .Values.database.external.existingSecret)) }}
+            {{- end }}
+            - name: KEERA_AGENTS_GATEWAY_URL
+              value: {{ .Values.gateway.url | quote }}
+            - name: KEERA_AGENTS_DRIVER
+              value: kubernetes
+            - name: KEERA_AGENTS_NAMESPACE
+              value: {{ include "keera-agents.agents.namespace" . | quote }}
+            - name: KEERA_AGENTS_RUNTIME_URL
+              value: {{ include "keera-agents.runtimeUrl" . | quote }}
+            - name: KEERA_AGENTS_IMAGE
+              value: "{{ $agents.image.repository }}:{{ $agents.image.tag | default .Chart.AppVersion }}"
+            - name: KEERA_AGENTS_WORKSPACE_IMAGE
+              value: "{{ .Values.workspaces.image.repository }}:{{ .Values.workspaces.image.tag | default .Chart.AppVersion }}"
+            {{- if $agents.userNamespaces }}
+            - name: KEERA_AGENTS_USER_NAMESPACES
+              value: "true"
+            {{- end }}
+            {{- range $name, $value := $optional }}
+            {{- if $value }}
+            - name: {{ $name }}
+              value: {{ $value | toString | quote }}
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              # keera-agents listens on KEERA_AGENTS_ADDR, which defaults to :8070.
+              containerPort: 8070
+              protocol: TCP
+          # /healthz answers before the schema migrates, which can wait for another replica.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          # /readyz fails until keera-agents is ready and while Postgres does not answer.
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          {{- with .Values.controlPlane.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.controlPlane.volumeMounts }}
+          volumeMounts:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      {{- with .Values.controlPlane.volumes }}
+      volumes:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controlPlane.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controlPlane.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controlPlane.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

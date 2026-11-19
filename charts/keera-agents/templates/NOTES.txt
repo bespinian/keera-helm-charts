@@ -1,0 +1,14 @@
+Agents run in the namespace {{ include "keera-agents.agents.namespace" . }}.
+
+Set these on Keera Gateway and restart it:
+  KEERA_AGENTS_URL={{ default "<publicUrl>" .Values.publicUrl }}
+  KEERA_AGENTS_SERVICE_KEY=<the same value as credentials.serviceKey>
+{{- if .Values.publicUrl }}
+
+Visit {{ .Values.publicUrl }} to use keera-agents.
+{{- else }}
+
+publicUrl is not set, reach keera-agents by running:
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "keera-agents.fullname" . }} 8070:{{ .Values.controlPlane.service.port }}
+and visit http://127.0.0.1:8070.
+{{- end }}

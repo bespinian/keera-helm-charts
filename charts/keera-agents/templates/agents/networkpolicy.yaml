@@ -1,0 +1,67 @@
+{{- if .Values.agents.networkPolicy.enabled }}
+{{- $policy := .Values.agents.networkPolicy }}
+{{- $namespace := include "keera-agents.agents.namespace" . }}
+# Agents reach DNS, Keera Gateway and keera-agents' runtime API, nothing else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keera-agents.fullname" . }}-default-deny
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+  egress:
+    - to:
+        {{- toYaml (list $policy.dns) | nindent 8 }}
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "keera-agents.selectorLabels" . | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 8070 }
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ default .Release.Namespace $policy.gateway.namespace }}
+          {{- with $policy.gateway.podSelector }}
+          podSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+      ports:
+        - { protocol: TCP, port: {{ $policy.gateway.port }} }
+    {{- with $policy.extraEgress }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+---
+# keera-agents reaches a workspace's front, which passes connections on.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "keera-agents.fullname" . }}-workspace-front
+  namespace: {{ $namespace }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: workspace
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Release.Namespace }}
+          podSelector:
+            matchLabels:
+              {{- include "keera-agents.selectorLabels" . | nindent 14 }}
+      ports:
+        - { protocol: TCP, port: 7420 }
+{{- end }}

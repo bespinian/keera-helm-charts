@@ -1,0 +1,17 @@
+{{- if .Values.agents.namespace.create }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "keera-agents.agents.namespace" . }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+    {{- with .Values.agents.namespace.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  annotations:
+    # Deleting the namespace would delete every agent's workspace.
+    helm.sh/resource-policy: keep
+    {{- with .Values.agents.namespace.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+{{- end }}

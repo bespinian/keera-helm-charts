@@ -1,0 +1,34 @@
+{{- if .Values.agents.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "keera-agents.fullname" . }}
+  namespace: {{ include "keera-agents.agents.namespace" . }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+rules:
+  # One StatefulSet per agent and workspace.
+  - apiGroups: [apps]
+    resources: [statefulsets]
+    verbs: [get, list, create, patch, delete]
+  # Why a pod failed, and a workspace pod's IP.
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "keera-agents.fullname" . }}
+  namespace: {{ include "keera-agents.agents.namespace" . }}
+  labels:
+    {{- include "keera-agents.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "keera-agents.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "keera-agents.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}

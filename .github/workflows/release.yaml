@@ -1,0 +1,61 @@
+name: Release Charts
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      packages: write # needed for ghcr access
+
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Helm
+        uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+        with:
+          version: v4.0.5
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Helm OCI Registry
+        env:
+          HELM_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+          HELM_USERNAME: ${{ github.actor }}
+        run: |
+          echo "$HELM_PASSWORD" | helm registry login ghcr.io \
+            --username "$HELM_USERNAME" \
+            --password-stdin
+
+      - name: Push new chart versions to GHCR
+        run: |
+          set -euo pipefail
+          registry="oci://ghcr.io/${GITHUB_REPOSITORY}"
+          mkdir -p .packages
+          for chart in charts/*/; do
+            name=$(helm show chart "$chart" | yq '.name')
+            version=$(helm show chart "$chart" | yq '.version')
+            if helm show chart "${registry}/${name}" --version "$version" >/dev/null 2>&1; then
+              echo "${name}:${version} already exists in ${registry}, skipping"
+              continue
+            fi
+            helm dependency build "$chart"
+            helm package "$chart" --destination .packages
+            echo "Pushing ${name}:${version} to ${registry}"
+            helm push ".packages/${name}-${version}.tgz" "$registry"
+          done

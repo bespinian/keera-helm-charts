@@ -1,0 +1,10 @@
+apiVersion: v2
+name: keera-gateway
+version: 0.1.0
+description: keera-gateway Helm chart for Kubernetes
+type: application
+home: https://keera.ch/en/gateway
+sources:
+  - https://github.com/bespinian/keera-gateway
+icon: https://keera.ch/assets/img/keera-apple-touch-icon.png
+appVersion: "v0.13.0"

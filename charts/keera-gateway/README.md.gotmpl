@@ -1,0 +1,77 @@
+# Keera Gateway Helm Chart
+
+{{ template "chart.description" . }}
+
+{{ template "chart.homepageLine" . }}
+
+## Quickstart
+
+This installs the gateway together with the internal PostgreSQL database.
+
+1. Create a namespace and a Secret holding randomly generated credentials for the gateway and the database:
+
+   ```sh
+   kubectl create namespace keera-gateway
+
+   kubectl create secret generic keera-gateway-credentials \
+     --namespace keera-gateway \
+     --from-literal=KEERA_OPERATOR_KEY="$(openssl rand -hex 32)" \
+     --from-literal=KEERA_SECRET_KEY="$(openssl rand -hex 32)" \
+     --from-literal=password="$(openssl rand -hex 32)"
+   ```
+
+   The key names match the defaults of `credentials.existingSecret` and `database.internal.existingSecretPasswordKey`.
+
+2. Install the chart, referencing that Secret:
+
+   ```sh
+   helm upgrade --install keera-gateway oci://ghcr.io/bespinian/keera-helm-charts/keera-gateway \
+     --version {{ template "chart.version" . }} \
+     --namespace keera-gateway \
+     --set credentials.existingSecret.name=keera-gateway-credentials \
+     --set database.internal.existingSecret=keera-gateway-credentials
+   ```
+
+3. Wait for the gateway to become ready:
+
+   ```sh
+   kubectl --namespace keera-gateway rollout status deployment/keera-gateway
+   ```
+
+4. Forward the gateway Service to your machine, it is then reachable at <http://localhost:8080>:
+
+   ```sh
+   kubectl --namespace keera-gateway port-forward services/keera-gateway 8080:80
+   ```
+
+5. Print the operator key:
+
+   ```sh
+   kubectl --namespace keera-gateway get secret keera-gateway-credentials \
+     -o template='{{"{{"}} index .data "KEERA_OPERATOR_KEY" | base64decode {{"}}"}}'
+   ```
+
+Keep the Secret when uninstalling the release: the database only accepts the password it was initialized with, see [Database](#database).
+
+## Database
+
+With `database.type: internal` (the default), the chart deploys a single PostgreSQL instance as a StatefulSet next to the gateway and wires up `KEERA_DATABASE_URL` automatically. Data is stored on a PersistentVolumeClaim, see `database.internal.persistence`.
+
+The password has no default, set either `database.internal.password` or `database.internal.existingSecret`. PostgreSQL applies the username, password and database name only when it initializes an empty data directory. Changing them later in the values does not update the existing database and breaks the gateway's connection.
+
+## Single sign-on
+
+Without OIDC, the control panel accepts only the operator key. To sign in through an identity provider, set `oidc.enabled`, `publicUrl` (the address a browser reaches the gateway on, whose `/control/auth/callback` every provider's client registration has to list) and either:
+
+- `oidc.issuer`, `oidc.clientId` and `oidc.clientSecret` for a single directory, which becomes a provider named `oidc.name` (`sso` by default), or
+- `oidc.providers`, a list of entries with their own `name`, `issuer`, `clientId` and `clientSecret`, for a sign-in button per directory. Each entry needs `domains` then.
+
+A provider's `name` ends up in every identity it writes, so do not change it later. The gateway shares no setting between providers, so the chart copies `adminGroups`, `operatorGroups`, `groupsClaim`, `defaultRole`, `scopes`, `domains` and `signup` into each provider that does not set its own.
+
+Instead of a `clientSecret`, each of them can reference an existing Secret through `existingSecret` and `existingSecretKey`. Client secrets set in the values are stored in a separate `<release>-keera-gateway-oidc` Secret.
+
+The operator role is never assignable through the panel, so it comes from `oidc.operatorGroups` or from the email addresses in `operators`. See the [SSO documentation](https://github.com/bespinian/keera-gateway/blob/main/docs/sso.md) for the provider-specific setup.
+
+## Values
+
+{{ template "chart.valuesTable" . }}

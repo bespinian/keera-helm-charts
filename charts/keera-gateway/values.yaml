@@ -1,0 +1,297 @@
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+# Used by the gateway and the internal database.
+imagePullSecrets: []
+
+credentials:
+  # Required unless existingSecret is set.
+  operatorKey: ""
+  secretKey: ""
+  # Use an existing Secret instead. When name is set, operatorKey and secretKey above are ignored.
+  existingSecret:
+    name: ""
+    # Keys in the existing Secret holding the credentials.
+    operatorSecretKey: KEERA_OPERATOR_KEY
+    secretSecretKey: KEERA_SECRET_KEY
+
+# Emails that are operators. The operator role is never assignable through the
+# panel, the CLI or the API, so this and oidc.operatorGroups are the only two
+# things that grant it.
+operators: []
+#   - you@yourcompany.ch
+
+# Host names inside the network that organisations may reach, such as
+# keera-engine, or "none" or "all". Empty is all. Required with oidc.signup, by
+# default a stranger's organisation reaches the whole private network.
+upstreamPrivate: ""
+
+# The address a browser reaches the gateway on, without a path. Single sign-on
+# returns to its /control/auth/callback, which every provider's client
+# registration has to list, so it is required when oidc.enabled is true.
+# Passkeys and payments need it too.
+publicUrl: "" # https://keera.example.ch
+
+# -- Lets administrators create accounts that sign in with a passkey, with or
+# without OIDC. Requires publicUrl with its scheme, which has to be https (or
+# http on localhost) and not an IP address, or the install fails. A passkey
+# belongs to that host name, so changing it later breaks every passkey.
+# See https://github.com/bespinian/keera-gateway/blob/main/docs/sso.md#passkeys.
+passkeys: false
+
+# Single sign-on for the control panel. Without it the panel accepts only the
+# operator key, and audit entries cannot name a person.
+# See https://github.com/bespinian/keera-gateway/blob/main/docs/sso.md.
+oidc:
+  enabled: false
+
+  # One directory: leave `providers` below empty and fill these in.
+  # The provider's name is chosen once, see `providers` below.
+  name: sso
+  # What the sign-in button says. Empty capitalises the name.
+  label: ""
+  issuer: "" # https://login.microsoftonline.com/<tenant>/v2.0
+  clientId: ""
+  # Required unless existingSecret is set.
+  clientSecret: ""
+  # Use an existing Secret for the client secret instead.
+  existingSecret: ""
+  # Key in the existing Secret holding the client secret.
+  existingSecretKey: clientSecret
+
+  # Several directories: a sign-in button per entry, each with a client of its
+  # own. Setting this ignores the single-directory fields above; everything from
+  # `adminGroups` down is copied to every entry, and an entry may override it.
+  # Each entry needs `domains` with several providers.
+  #
+  # A name is chosen once. It goes in the sign-in URL and in every identity that
+  # provider writes, so changing one orphans everybody who signed in through it.
+  providers: []
+  # - name: google
+  #   issuer: https://accounts.google.com
+  #   clientId: ""
+  #   clientSecret: ""
+  #   # Or an existing Secret of its own:
+  #   existingSecret: ""
+  #   existingSecretKey: clientSecret
+  # - name: entra
+  #   issuer: https://login.microsoftonline.com/<tenant>/v2.0
+  #   clientId: ""
+  #   clientSecret: ""
+  #   # Entra's groups claim carries object GUIDs rather than names, app roles avoid that.
+  #   groupsClaim: roles
+  #   adminGroups: [keera-admins]
+  #   # What the button says. Empty gives "Microsoft" for a provider named
+  #   # entra, azure, azuread, microsoft or m365.
+  #   label: ""
+
+  # Set adminGroups and the directory owns the administrator role: it is read on
+  # every sign-in, and the panel, the CLI and the API stop assigning roles. Leave
+  # it empty to make administrators with `keera user role`.
+  adminGroups: []
+  operatorGroups: []
+  # Empty is "groups".
+  groupsClaim: ""
+  # Role of a person matching no group: operator, admin or member. Empty is member.
+  defaultRole: ""
+  scopes: []
+  # Email domains a provider may sign people in with, ["*"] for any. Required
+  # with several providers, so one directory cannot vouch for another's addresses.
+  domains: []
+  # Lets someone whose sign-in matches no organisation create one.
+  signup: false
+
+gateway:
+  replicaCount: 1
+
+  image:
+    repository: ghcr.io/bespinian/keera-gateway
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
+  serviceAccount:
+    # Specifies whether a service account should be created.
+    create: true
+    # Automatically mount a ServiceAccount's API credentials?
+    automount: true
+    # Annotations to add to the service account.
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template.
+    name: ""
+
+  # This is for setting Kubernetes Annotations to a Pod.
+  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+  podAnnotations: {}
+  # This is for setting Kubernetes Labels to a Pod.
+  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  podLabels: {}
+
+  podSecurityContext: {}
+    # fsGroup: 2000
+
+  securityContext: {}
+    # capabilities:
+    #   drop:
+    #   - ALL
+    # readOnlyRootFilesystem: true
+    # runAsNonRoot: true
+    # runAsUser: 1000
+
+  # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
+  service:
+    # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+    type: ClusterIP
+    # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+    port: 80
+
+  # Expose the gateway through an Ingress.
+  # See https://kubernetes.io/docs/concepts/services-networking/ingress/
+  ingress:
+    enabled: false
+    ingressClassName: ""
+    annotations: {}
+    labels: {}
+    # Empty matches any host.
+    hostname: ""
+    path: /
+    pathType: Prefix
+    # TLS for hostname and extraHosts from the Secret <fullname>-tls.
+    tls: false
+    # Further host names, path and pathType default to the ones above.
+    extraHosts: []
+    # - name: keera.example.com
+    #   path: /
+    # Further TLS entries.
+    extraTls: []
+    # - hosts:
+    #     - keera.example.com
+    #   secretName: keera-example-tls
+
+  # Expose the gateway through a Gateway API HTTPRoute, which needs the Gateway
+  # API CRDs and a controller. See https://gateway-api.sigs.k8s.io/guides/
+  httpRoute:
+    enabled: false
+    annotations: {}
+    labels: {}
+    # Gateways the route attaches to.
+    parentRefs: []
+    # - name: gateway
+    #   namespace: gateway
+    #   sectionName: https
+    # Empty matches any host.
+    hostnames: []
+    # The backend is always the gateway's service; each rule may set matches,
+    # filters and timeouts.
+    rules:
+      - matches:
+          - path:
+              type: PathPrefix
+              value: /
+        # filters: []
+        # timeouts:
+        #   request: 30s
+
+  resources: {}
+    # We usually recommend not to specify default resources and to leave this as a conscious
+    # choice for the user. This also increases chances charts run on environments with little
+    # resources, such as Minikube. If you do want to specify resources, uncomment the following
+    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # limits:
+    #   cpu: 100m
+    #   memory: 128Mi
+    # requests:
+    #   cpu: 100m
+    #   memory: 128Mi
+
+  # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage: 80
+
+  # Additional volumes on the output Deployment definition.
+  volumes: []
+    # - name: foo
+    #   secret:
+    #     secretName: mysecret
+    #     optional: false
+
+  # Additional volumeMounts on the output Deployment definition.
+  volumeMounts: []
+    # - name: foo
+    #   mountPath: "/etc/foo"
+    #   readOnly: true
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+database:
+  # "internal" deploys a single PostgreSQL instance as part of this release.
+  type: "internal"
+  internal:
+    image:
+      repository: docker.io/library/postgres
+      tag: "18"
+      pullPolicy: IfNotPresent
+    # Superuser created on first start, also owner of the database below.
+    username: keera
+    database: keera
+    # Password of the superuser. Required unless existingSecret is set.
+    password: ""
+    # Use an existing Secret for the password instead of creating one.
+    existingSecret: ""
+    # Key in the existing Secret holding the password.
+    existingSecretPasswordKey: password
+    # The official image runs PostgreSQL as uid/gid 999.
+    podSecurityContext:
+      runAsUser: 999
+      runAsGroup: 999
+      fsGroup: 999
+      fsGroupChangePolicy: OnRootMismatch
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    resources: {}
+      # requests:
+      #   cpu: 100m
+      #   memory: 256Mi
+    livenessProbe:
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 6
+    readinessProbe:
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+    # Size limit of /dev/shm, PostgreSQL uses it for shared_buffers.
+    shmSizeLimit: 512Mi
+    extraEnvVars: []
+    podAnnotations: {}
+    podLabels: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    persistence:
+      # If disabled, data is stored in an emptyDir and lost when the pod is deleted.
+      enabled: true
+      # Use an existing PersistentVolumeClaim instead of creating one.
+      existingClaim: ""
+      # Empty uses the cluster default StorageClass, "-" disables dynamic provisioning.
+      storageClass: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+      annotations: {}

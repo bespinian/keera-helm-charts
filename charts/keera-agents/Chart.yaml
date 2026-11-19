@@ -1,0 +1,10 @@
+apiVersion: v2
+name: keera-agents
+version: 0.1.0
+description: keera-agents Helm chart for Kubernetes
+type: application
+home: https://keera.ch
+sources:
+  - https://github.com/bespinian/keera-agents
+icon: https://keera.ch/assets/img/keera-apple-touch-icon.png
+appVersion: "v0.1.0"

@@ -1,0 +1,131 @@
+{{- if eq .Values.database.type "internal" }}
+{{- $database := .Values.database.internal }}
+{{- $persistence := $database.persistence }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "keera-gateway.database.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "keera-gateway.database.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  serviceName: {{ include "keera-gateway.database.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "keera-gateway.database.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/database/database-secret.yaml") . | sha256sum }}
+        {{- with $database.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "keera-gateway.database.labels" . | nindent 8 }}
+        {{- with $database.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      automountServiceAccountToken: false
+      {{- with $database.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: 120
+      containers:
+        - name: database
+          image: "{{ $database.image.repository }}:{{ $database.image.tag }}"
+          imagePullPolicy: {{ $database.image.pullPolicy }}
+          {{- with $database.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          env:
+            - name: POSTGRES_USER
+              value: {{ $database.username | quote }}
+            - name: POSTGRES_DB
+              value: {{ $database.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "keera-gateway.database.passwordSecretName" . }}
+                  key: {{ include "keera-gateway.database.passwordSecretKey" . }}
+            {{- with $database.extraEnvVars }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          livenessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            {{- toYaml $database.livenessProbe | nindent 12 }}
+          readinessProbe:
+            exec:
+              command: ["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            {{- toYaml $database.readinessProbe | nindent 12 }}
+          {{- with $database.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            # Since PostgreSQL 18 the image keeps its data in /var/lib/postgresql/<major>/docker
+            - name: database-data
+              mountPath: /var/lib/postgresql
+            - name: shm-volume
+              mountPath: /dev/shm
+      volumes:
+        # PostgreSQL uses shared memory for shared_buffers, the container runtime default of 64Mi is too small
+        - name: shm-volume
+          emptyDir:
+            medium: Memory
+            sizeLimit: {{ $database.shmSizeLimit }}
+        {{- if not $persistence.enabled }}
+        - name: database-data
+          emptyDir: {}
+        {{- else if $persistence.existingClaim }}
+        - name: database-data
+          persistentVolumeClaim:
+            claimName: {{ $persistence.existingClaim }}
+        {{- end }}
+      {{- with $database.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $database.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with $database.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  {{- if and $persistence.enabled (not $persistence.existingClaim) }}
+  volumeClaimTemplates:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: database-data
+        labels:
+          {{- include "keera-gateway.database.labels" . | nindent 10 }}
+        {{- with $persistence.annotations }}
+        annotations:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes:
+          - {{ $persistence.accessMode }}
+        {{- if $persistence.storageClass }}
+        storageClassName: {{ if eq "-" $persistence.storageClass }}""{{ else }}{{ $persistence.storageClass | quote }}{{ end }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $persistence.size | quote }}
+  {{- end }}
+{{- end }}
