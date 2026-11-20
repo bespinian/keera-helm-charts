@@ -110,7 +110,8 @@ agents:
   # ServiceAccount agents run as, in agents.namespace. Its token is never
   # mounted. Empty is the namespace's default.
   serviceAccount: ""
-  # Secrets in agents.namespace to pull the agent and workspace images with.
+  # Secrets in agents.namespace to pull the agent and workspace images with,
+  # as names or as {name: ...} like the top-level imagePullSecrets.
   imagePullSecrets: []
   # Run standard-tier pods in a user namespace of their own. Needs Kubernetes
   # 1.33 and a container runtime that supports it.

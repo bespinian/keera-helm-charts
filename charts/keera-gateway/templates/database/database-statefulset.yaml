@@ -113,7 +113,7 @@ spec:
       metadata:
         name: database-data
         labels:
-          {{- include "keera-gateway.database.labels" . | nindent 10 }}
+          {{- include "keera-gateway.database.selectorLabels" . | nindent 10 }}
         {{- with $persistence.annotations }}
         annotations:
           {{- toYaml . | nindent 10 }}

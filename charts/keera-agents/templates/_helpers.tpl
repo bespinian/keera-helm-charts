@@ -128,12 +128,19 @@ password
 {{- end }}
 
 {{/*
+Escapes a URL user or path segment. urlquery escapes for a query string, where a space becomes "+"
+*/}}
+{{- define "keera-agents.database.urlEscape" -}}
+{{- urlquery . | replace "+" "%20" }}
+{{- end }}
+
+{{/*
 Internal database connection URL
 The password is not part of the URL, keera-agents reads it from PGPASSWORD
 */}}
 {{- define "keera-agents.database.url" -}}
 {{- $internal := .Values.database.internal }}
-{{- printf "postgres://%s@%s:5432/%s?sslmode=disable" ($internal.username | urlquery) (include "keera-agents.database.fullname" .) $internal.database }}
+{{- printf "postgres://%s@%s:5432/%s?sslmode=disable" (include "keera-agents.database.urlEscape" $internal.username) (include "keera-agents.database.fullname" .) (include "keera-agents.database.urlEscape" $internal.database) }}
 {{- end }}
 
 {{/*

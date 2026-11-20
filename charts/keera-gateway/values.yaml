@@ -236,7 +236,8 @@ gateway:
   affinity: {}
 
 database:
-  # "internal" deploys a single PostgreSQL instance as part of this release.
+  # "internal" deploys a single PostgreSQL instance as part of this release,
+  # the only type the gateway supports.
   type: "internal"
   internal:
     image:

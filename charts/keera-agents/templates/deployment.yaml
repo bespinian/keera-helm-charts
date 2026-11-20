@@ -1,5 +1,14 @@
 {{- include "keera-agents.validate" . }}
 {{- $agents := .Values.agents }}
+{{- /* Accepts both plain names and the Kubernetes {name: ...} form of the top-level imagePullSecrets. */}}
+{{- $pullSecrets := list }}
+{{- range $agents.imagePullSecrets }}
+{{- if kindIs "map" . }}
+{{- $pullSecrets = append $pullSecrets .name }}
+{{- else }}
+{{- $pullSecrets = append $pullSecrets . }}
+{{- end }}
+{{- end }}
 {{- /* Optional settings, left out when empty so keera-agents applies its own default. */}}
 {{- $optional := dict
   "KEERA_AGENTS_PUBLIC_URL" .Values.publicUrl
@@ -23,7 +32,7 @@
   "KEERA_AGENTS_MAX_DISK" $agents.maxDisk
   "KEERA_AGENTS_STORAGE_CLASS" $agents.storageClass
   "KEERA_AGENTS_SERVICE_ACCOUNT" $agents.serviceAccount
-  "KEERA_AGENTS_IMAGE_PULL_SECRETS" (join "," $agents.imagePullSecrets)
+  "KEERA_AGENTS_IMAGE_PULL_SECRETS" (join "," $pullSecrets)
   "KEERA_AGENTS_WORKSPACE_IDLE_SUSPEND" .Values.workspaces.idleSuspend
 }}
 apiVersion: apps/v1
@@ -124,7 +133,8 @@ spec:
               value: "true"
             {{- end }}
             {{- range $name, $value := $optional }}
-            {{- if $value }}
+            {{- /* Not a truthiness check, which would drop a numeric 0, "never" for idleSuspend. */}}
+            {{- if and (not (kindIs "invalid" $value)) (ne (toString $value) "") }}
             - name: {{ $name }}
               value: {{ $value | toString | quote }}
             {{- end }}

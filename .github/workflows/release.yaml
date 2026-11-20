@@ -11,6 +11,7 @@ permissions:
 jobs:
   release:
     permissions:
+      contents: write # needed to create tags and GitHub releases
       packages: write # needed for ghcr access
 
     runs-on: ubuntu-latest
@@ -42,7 +43,9 @@ jobs:
             --username "$HELM_USERNAME" \
             --password-stdin
 
-      - name: Push new chart versions to GHCR
+      - name: Push new chart versions to GHCR and create GitHub releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           registry="oci://ghcr.io/${GITHUB_REPOSITORY}"
@@ -50,12 +53,44 @@ jobs:
           for chart in charts/*/; do
             name=$(helm show chart "$chart" | yq '.name')
             version=$(helm show chart "$chart" | yq '.version')
-            if helm show chart "${registry}/${name}" --version "$version" >/dev/null 2>&1; then
-              echo "${name}:${version} already exists in ${registry}, skipping"
+            tag="${name}-${version}"
+
+            pushed=false
+            if out=$(helm show chart "${registry}/${name}" --version "$version" 2>&1); then
+              pushed=true
+            elif ! grep -qi "not found" <<< "$out"; then
+              echo "Failed to check ${name}:${version} in ${registry}: ${out}" >&2
+              exit 1
+            fi
+
+            released=false
+            if out=$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" 2>&1); then
+              released=true
+            elif ! grep -qi "not found" <<< "$out"; then
+              echo "Failed to check release ${tag}: ${out}" >&2
+              exit 1
+            fi
+
+            if [ "$pushed" = true ] && [ "$released" = true ]; then
+              echo "${tag} already published, skipping"
               continue
             fi
+
             helm dependency build "$chart"
             helm package "$chart" --destination .packages
-            echo "Pushing ${name}:${version} to ${registry}"
-            helm push ".packages/${name}-${version}.tgz" "$registry"
+            package=".packages/${tag}.tgz"
+
+            if [ "$pushed" = false ]; then
+              echo "Pushing ${name}:${version} to ${registry}"
+              helm push "$package" "$registry"
+            fi
+
+            if [ "$released" = false ]; then
+              echo "Creating tag and release ${tag}"
+              gh release create "$tag" "$package" \
+                --repo "$GITHUB_REPOSITORY" \
+                --target "$GITHUB_SHA" \
+                --title "$tag" \
+                --generate-notes
+            fi
           done

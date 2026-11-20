@@ -28,7 +28,7 @@ This installs keera-agents together with the internal PostgreSQL database, next 
 
    ```sh
    helm upgrade --install keera-agents oci://ghcr.io/bespinian/keera-helm-charts/keera-agents \
-     --version 0.1.0 \
+     --version 0.1.1 \
      --namespace keera \
      --set publicUrl=https://agents.example.ch \
      --set gateway.url=https://keera.example.ch \

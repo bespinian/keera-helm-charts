@@ -113,12 +113,28 @@ password
 {{- end }}
 
 {{/*
+Escapes a URL user or path segment. urlquery escapes for a query string, where a space becomes "+"
+*/}}
+{{- define "keera-gateway.database.urlEscape" -}}
+{{- urlquery . | replace "+" "%20" }}
+{{- end }}
+
+{{/*
 Internal database connection URL
 The password is not part of the URL, the gateway reads it from PGPASSWORD
 */}}
 {{- define "keera-gateway.database.url" -}}
 {{- $internal := .Values.database.internal }}
-{{- printf "postgres://%s@%s:5432/%s?sslmode=disable" ($internal.username | urlquery) (include "keera-gateway.database.fullname" .) $internal.database }}
+{{- printf "postgres://%s@%s:5432/%s?sslmode=disable" (include "keera-gateway.database.urlEscape" $internal.username) (include "keera-gateway.database.fullname" .) (include "keera-gateway.database.urlEscape" $internal.database) }}
+{{- end }}
+
+{{/*
+Fails on an unsupported database type, the gateway has no external database option
+*/}}
+{{- define "keera-gateway.database.validate" -}}
+{{- if ne .Values.database.type "internal" }}
+{{- fail (printf "database.type must be internal, not %q" .Values.database.type) }}
+{{- end }}
 {{- end }}
 
 {{/*

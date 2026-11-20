@@ -1,3 +1,4 @@
+{{- include "keera-gateway.database.validate" . }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

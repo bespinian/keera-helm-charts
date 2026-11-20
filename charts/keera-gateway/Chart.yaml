@@ -1,6 +1,6 @@
 apiVersion: v2
 name: keera-gateway
-version: 0.1.0
+version: 0.1.1
 description: keera-gateway Helm chart for Kubernetes
 type: application
 home: https://keera.ch/en/gateway
