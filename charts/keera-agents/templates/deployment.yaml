@@ -66,8 +66,11 @@ spec:
   template:
     metadata:
       annotations:
-        {{- if not .Values.credentials.existingSecret.name }}
+        {{- if not $existing.name }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (eq .Values.database.type "external") (not .Values.database.external.existingSecret) }}
+        checksum/database-secret: {{ include (print $.Template.BasePath "/database/database-external-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- with .Values.controlPlane.podAnnotations }}
         {{- toYaml . | nindent 8 }}

@@ -51,8 +51,8 @@ jobs:
           registry="oci://ghcr.io/${GITHUB_REPOSITORY}"
           mkdir -p .packages
           for chart in charts/*/; do
-            name=$(helm show chart "$chart" | yq '.name')
-            version=$(helm show chart "$chart" | yq '.version')
+            name=$(yq '.name' "${chart}Chart.yaml")
+            version=$(yq '.version' "${chart}Chart.yaml")
             tag="${name}-${version}"
 
             pushed=false
@@ -76,7 +76,6 @@ jobs:
               continue
             fi
 
-            helm dependency build "$chart"
             helm package "$chart" --destination .packages
             package=".packages/${tag}.tgz"
 

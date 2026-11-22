@@ -1,5 +1,6 @@
 {{- $database := .Values.database.internal }}
 {{- $persistence := $database.persistence }}
+{{- $pgIsReady := `["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]` }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -63,11 +64,11 @@ spec:
             {{- end }}
           livenessProbe:
             exec:
-              command: ["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+              command: {{ $pgIsReady }}
             {{- toYaml $database.livenessProbe | nindent 12 }}
           readinessProbe:
             exec:
-              command: ["/bin/sh", "-c", "pg_isready -h 127.0.0.1 -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+              command: {{ $pgIsReady }}
             {{- toYaml $database.readinessProbe | nindent 12 }}
           {{- with $database.resources }}
           resources:

@@ -22,8 +22,11 @@ spec:
   template:
     metadata:
       annotations:
-        {{- if not .Values.credentials.existingSecret.name }}
+        {{- if not $existing.name }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.oidc.enabled }}
+        checksum/oidc-secret: {{ include (print $.Template.BasePath "/oidc-secret.yaml") . | sha256sum }}
         {{- end }}
         {{- with .Values.gateway.podAnnotations }}
         {{- toYaml . | nindent 8 }}
