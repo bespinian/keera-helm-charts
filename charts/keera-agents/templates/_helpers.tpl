@@ -72,7 +72,7 @@ Name of the Secret holding the credentials
 Namespace agents and workspaces run in
 */}}
 {{- define "keera-agents.agents.namespace" -}}
-{{- default (printf "%s-agents" .Release.Namespace) .Values.agents.namespace.name | trunc 63 | trimSuffix "-" }}
+{{- default (printf "%s-sandbox" .Release.Namespace) .Values.agents.namespace.name | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*

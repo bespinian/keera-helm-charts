@@ -8,13 +8,15 @@ Keera Agents runs AI agents on top of [Keera Gateway](../keera-gateway). The cha
 
 ## Quickstart
 
-This installs keera-agents together with the internal PostgreSQL database, next to a gateway installed with the keera-gateway chart in the namespace `keera`.
+This installs keera-agents together with the internal PostgreSQL database, in the namespace `keera-agents`, next to a gateway installed with the keera-gateway chart in the namespace `keera-gateway`.
 
-1. Create a Secret holding randomly generated credentials for keera-agents and the database:
+1. Create a namespace and a Secret holding randomly generated credentials for keera-agents and the database:
 
    ```sh
+   kubectl create namespace keera-agents
+
    kubectl create secret generic keera-agents-credentials \
-     --namespace keera \
+     --namespace keera-agents \
      --from-literal=KEERA_AGENTS_SERVICE_KEY="$(openssl rand -hex 32)" \
      --from-literal=KEERA_AGENTS_SECRET_KEY="$(openssl rand -hex 32)" \
      --from-literal=password="$(openssl rand -hex 32)"
@@ -29,10 +31,11 @@ This installs keera-agents together with the internal PostgreSQL database, next 
    ```sh
    helm upgrade --install keera-agents oci://ghcr.io/bespinian/keera-helm-charts/keera-agents \
      --version 0.1.1 \
-     --namespace keera \
+     --namespace keera-agents \
      --set publicUrl=https://agents.example.ch \
      --set gateway.url=https://keera.example.ch \
-     --set gateway.internalUrl=http://keera-gateway.keera.svc \
+     --set gateway.internalUrl=http://keera-gateway.keera-gateway.svc \
+     --set agents.networkPolicy.gateway.namespace=keera-gateway \
      --set credentials.existingSecret.name=keera-agents-credentials \
      --set database.internal.existingSecret=keera-agents-credentials
    ```
@@ -40,21 +43,27 @@ This installs keera-agents together with the internal PostgreSQL database, next 
 4. Wait for keera-agents to become ready:
 
    ```sh
-   kubectl --namespace keera rollout status deployment/keera-agents
+   kubectl --namespace keera-agents rollout status deployment/keera-agents
+   ```
+
+5. Forward the keera-agents Service to your machine, it is then reachable at <http://localhost:8070>:
+
+   ```sh
+   kubectl --namespace keera-agents port-forward services/keera-agents 8070:80
    ```
 
 Keep the Secret when uninstalling the release: the database only accepts the password it was initialized with, and without `KEERA_AGENTS_SECRET_KEY` every stored connector credential is unreadable.
 
 ## Where agents run
 
-Agents run in `agents.namespace.name`, `<release namespace>-agents` by default, and never in the release namespace: whoever reads pods there reads runtime tokens. The chart creates it with the `restricted` Pod Security Standard and keeps it on uninstall, since it holds the agents' workspaces. Delete it yourself to remove them.
+Agents run in `agents.namespace.name`, `<release namespace>-sandbox` by default (`keera-agents-sandbox` in the quickstart), and never in the release namespace: whoever reads pods there reads runtime tokens. The chart creates it with the `restricted` Pod Security Standard and keeps it on uninstall, since it holds the agents' workspaces. Delete it yourself to remove them.
 
 In that namespace the chart creates:
 
 - a Role and RoleBinding that let keera-agents manage StatefulSets and read pods (`agents.rbac.create`),
 - a default-deny NetworkPolicy that lets agents reach only DNS, Keera Gateway and keera-agents, and one that lets keera-agents reach workspaces (`agents.networkPolicy.enabled`). The CNI must enforce them.
 
-Agents reach Keera Gateway at `gateway.internalUrl`. The NetworkPolicy allows the pods matching `agents.networkPolicy.gateway`, by default keera-gateway's pods in the release namespace on port 8080. Add further destinations, such as an internal package proxy, to `agents.networkPolicy.extraEgress`.
+Agents reach Keera Gateway at `gateway.internalUrl`. The NetworkPolicy allows the pods matching `agents.networkPolicy.gateway`, by default keera-gateway's pods in the release namespace on port 8080. Set `agents.networkPolicy.gateway.namespace` when the gateway runs in a namespace of its own, as in the quickstart. Add further destinations, such as an internal package proxy, to `agents.networkPolicy.extraEgress`.
 
 Isolation tiers need RuntimeClasses: set `agents.runtimeClasses.isolated` for gVisor and `agents.runtimeClasses.vm` for Kata. See [agents.md](https://github.com/bespinian/keera-agents/blob/main/docs/agents.md) for the hardening the cluster has to provide, such as `podPidsLimit` on the kubelet.
 

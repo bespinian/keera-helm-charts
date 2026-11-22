@@ -69,7 +69,7 @@ extraEnvVars: []
 # per agent and workspace in agents.namespace.
 agents:
   namespace:
-    # Where agents run. Empty is "<release namespace>-agents". Agents need a
+    # Where agents run. Empty is "<release namespace>-sandbox". Agents need a
     # namespace of their own: whoever reads pods there reads runtime tokens.
     name: ""
     # Create the namespace. It is kept on uninstall, since it holds the agents'
