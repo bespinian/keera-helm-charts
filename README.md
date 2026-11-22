@@ -9,7 +9,7 @@ More detailed documentation can be found in the [Keera Gateway chart directory](
 
 ### keera-agents
 
-The chart can be used to install Keera Agents, which runs AI agents on top of Keera Gateway, in a Kubernetes cluster.
+The chart can be used to install [Keera Agents](https://keera.ch/en/agents), which runs AI agents on top of Keera Gateway, in a Kubernetes cluster.
 More detailed documentation can be found in the [Keera Agents chart directory](./charts/keera-agents).
 
 ## License
