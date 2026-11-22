@@ -26,7 +26,7 @@ This installs the gateway together with the internal PostgreSQL database.
 
    ```sh
    helm upgrade --install keera-gateway oci://ghcr.io/bespinian/keera-helm-charts/keera-gateway \
-     --version 0.1.1 \
+     --version 0.1.2 \
      --namespace keera-gateway \
      --set credentials.existingSecret.name=keera-gateway-credentials \
      --set database.internal.existingSecret=keera-gateway-credentials
