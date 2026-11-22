@@ -1,4 +1,10 @@
-{{- include "keera-gateway.database.validate" . }}
+{{- include "keera-gateway.validate" . }}
+{{- /* Environment variable to key in the credentials Secret. */}}
+{{- $existing := .Values.credentials.existingSecret }}
+{{- $credentialKeys := dict "KEERA_OPERATOR_KEY" "KEERA_OPERATOR_KEY" "KEERA_SECRET_KEY" "KEERA_SECRET_KEY" }}
+{{- if $existing.name }}
+{{- $credentialKeys = dict "KEERA_OPERATOR_KEY" $existing.operatorSecretKey "KEERA_SECRET_KEY" $existing.secretSecretKey }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -46,16 +52,13 @@ spec:
           image: "{{ .Values.gateway.image.repository }}:{{ .Values.gateway.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.gateway.image.pullPolicy }}
           env:
-            {{- with .Values.credentials.existingSecret }}
-            {{- range $name, $key := dict "KEERA_OPERATOR_KEY" .operatorSecretKey "KEERA_SECRET_KEY" .secretSecretKey }}
+            {{- range $name, $key := $credentialKeys }}
             - name: {{ $name }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "keera-gateway.credentials.secretName" $ }}
-                  key: {{ ternary $key $name (not (empty $.Values.credentials.existingSecret.name)) }}
+                  key: {{ $key }}
             {{- end }}
-            {{- end }}
-            {{- if eq .Values.database.type "internal" }}
             # pgx falls back to PGPASSWORD when the URL holds no password, so it needs no URL encoding.
             - name: PGPASSWORD
               valueFrom:
@@ -64,13 +67,11 @@ spec:
                   key: {{ include "keera-gateway.database.passwordSecretKey" . }}
             - name: KEERA_DATABASE_URL
               value: {{ include "keera-gateway.database.url" . | quote }}
-            {{- end }}
             {{- with .Values.publicUrl }}
             - name: KEERA_PUBLIC_URL
               value: {{ . | quote }}
             {{- end }}
             {{- if .Values.passkeys }}
-            {{- include "keera-gateway.passkeys.validate" . }}
             - name: KEERA_PASSKEYS
               value: "true"
             {{- end }}

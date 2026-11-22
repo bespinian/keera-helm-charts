@@ -144,19 +144,12 @@ The password is not part of the URL, keera-agents reads it from PGPASSWORD
 {{- end }}
 
 {{/*
-Fails on an unknown database type
-*/}}
-{{- define "keera-agents.database.validate" -}}
-{{- if not (has .Values.database.type (list "internal" "external")) }}
-{{- fail (printf "database.type must be internal or external, not %q" .Values.database.type) }}
-{{- end }}
-{{- end }}
-
-{{/*
 Fails on a missing or malformed setting, keera-agents refuses to start with one
 */}}
 {{- define "keera-agents.validate" -}}
-{{- include "keera-agents.database.validate" . }}
+{{- if not (has .Values.database.type (list "internal" "external")) }}
+{{- fail (printf "database.type must be internal or external, not %q" .Values.database.type) }}
+{{- end }}
 {{- if not .Values.gateway.url }}
 {{- fail "gateway.url is required, Keera Gateway as a browser reaches it" }}
 {{- end }}

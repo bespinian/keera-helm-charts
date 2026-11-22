@@ -129,15 +129,6 @@ The password is not part of the URL, the gateway reads it from PGPASSWORD
 {{- end }}
 
 {{/*
-Fails on an unsupported database type, the gateway has no external database option
-*/}}
-{{- define "keera-gateway.database.validate" -}}
-{{- if ne .Values.database.type "internal" }}
-{{- fail (printf "database.type must be internal, not %q" .Values.database.type) }}
-{{- end }}
-{{- end }}
-
-{{/*
 Name of the Secret holding the OIDC client secrets the chart owns
 */}}
 {{- define "keera-gateway.oidc.secretName" -}}
@@ -223,7 +214,6 @@ Fails on a partial OIDC configuration, the gateway refuses to start with one
 OIDC environment variables of the gateway container
 */}}
 {{- define "keera-gateway.oidc.env" -}}
-{{- include "keera-gateway.oidc.validate" . }}
 {{- if .Values.oidc.enabled }}
 {{- $secretName := include "keera-gateway.oidc.secretName" . }}
 {{- $providers := (include "keera-gateway.oidc.providers" . | fromYaml).providers }}
@@ -302,4 +292,12 @@ address.
 {{- fail (printf "passkeys needs a host name in publicUrl, not an address; browsers refuse %s" $host) }}
 {{- end }}
 {{- end }}
+{{- end }}
+
+{{/*
+Fails on a missing or malformed setting, the gateway refuses to start with one
+*/}}
+{{- define "keera-gateway.validate" -}}
+{{- include "keera-gateway.oidc.validate" . }}
+{{- include "keera-gateway.passkeys.validate" . }}
 {{- end }}

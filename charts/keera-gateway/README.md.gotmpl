@@ -55,7 +55,7 @@ Keep the Secret when uninstalling the release: the database only accepts the pas
 
 ## Database
 
-With `database.type: internal` (the default), the chart deploys a single PostgreSQL instance as a StatefulSet next to the gateway and wires up `KEERA_DATABASE_URL` automatically. Data is stored on a PersistentVolumeClaim, see `database.internal.persistence`.
+The chart deploys a single PostgreSQL instance as a StatefulSet next to the gateway and wires up `KEERA_DATABASE_URL` automatically. Data is stored on a PersistentVolumeClaim, see `database.internal.persistence`.
 
 The password has no default, set either `database.internal.password` or `database.internal.existingSecret`. PostgreSQL applies the username, password and database name only when it initializes an empty data directory. Changing them later in the values does not update the existing database and breaks the gateway's connection.
 

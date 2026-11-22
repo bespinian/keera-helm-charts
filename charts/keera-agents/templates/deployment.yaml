@@ -1,5 +1,19 @@
 {{- include "keera-agents.validate" . }}
 {{- $agents := .Values.agents }}
+{{- /* Environment variable to key in the credentials Secret, an empty key leaves the variable out. */}}
+{{- $existing := .Values.credentials.existingSecret }}
+{{- $credentialKeys := dict
+  "KEERA_AGENTS_SERVICE_KEY" "KEERA_AGENTS_SERVICE_KEY"
+  "KEERA_AGENTS_SECRET_KEY" "KEERA_AGENTS_SECRET_KEY"
+  "KEERA_AGENTS_METRICS_TOKEN" (ternary "KEERA_AGENTS_METRICS_TOKEN" "" (not (empty .Values.credentials.metricsToken)))
+}}
+{{- if $existing.name }}
+{{- $credentialKeys = dict
+  "KEERA_AGENTS_SERVICE_KEY" $existing.serviceSecretKey
+  "KEERA_AGENTS_SECRET_KEY" $existing.secretSecretKey
+  "KEERA_AGENTS_METRICS_TOKEN" $existing.metricsTokenSecretKey
+}}
+{{- end }}
 {{- /* Accepts both plain names and the Kubernetes {name: ...} form of the top-level imagePullSecrets. */}}
 {{- $pullSecrets := list }}
 {{- range $agents.imagePullSecrets }}
@@ -84,21 +98,14 @@ spec:
           image: "{{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
           env:
-            {{- with .Values.credentials.existingSecret }}
-            {{- range $name, $key := dict "KEERA_AGENTS_SERVICE_KEY" .serviceSecretKey "KEERA_AGENTS_SECRET_KEY" .secretSecretKey }}
+            {{- range $name, $key := $credentialKeys }}
+            {{- if $key }}
             - name: {{ $name }}
               valueFrom:
                 secretKeyRef:
                   name: {{ include "keera-agents.credentials.secretName" $ }}
-                  key: {{ ternary $key $name (not (empty $.Values.credentials.existingSecret.name)) }}
+                  key: {{ $key }}
             {{- end }}
-            {{- end }}
-            {{- if or (and .Values.credentials.existingSecret.name .Values.credentials.existingSecret.metricsTokenSecretKey) (and (not .Values.credentials.existingSecret.name) .Values.credentials.metricsToken) }}
-            - name: KEERA_AGENTS_METRICS_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "keera-agents.credentials.secretName" . }}
-                  key: {{ ternary .Values.credentials.existingSecret.metricsTokenSecretKey "KEERA_AGENTS_METRICS_TOKEN" (not (empty .Values.credentials.existingSecret.name)) }}
             {{- end }}
             {{- if eq .Values.database.type "internal" }}
             # pgx falls back to PGPASSWORD when the URL holds no password, so it needs no URL encoding.

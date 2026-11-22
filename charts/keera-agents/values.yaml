@@ -1,66 +1,73 @@
-# This is to override the chart name.
+# -- Overrides the chart name.
 nameOverride: ""
+# -- Overrides the full name of the release's resources.
 fullnameOverride: ""
 
-# This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
-# Used by keera-agents and the internal database. Agents use agents.imagePullSecrets.
+# -- Secrets to pull the keera-agents and internal database images with. Agents
+# use agents.imagePullSecrets. See
+# https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
 imagePullSecrets: []
 
 credentials:
-  # Required unless existingSecret is set.
-  # The same value as KEERA_AGENTS_SERVICE_KEY on Keera Gateway, at least 32 characters.
+  # -- The same value as KEERA_AGENTS_SERVICE_KEY on Keera Gateway, at least 32
+  # characters. Required unless existingSecret.name is set.
   serviceKey: ""
-  # Seals cookies, agents' keys and connector credentials, at least 16 characters.
-  # Back it up with the database: without it every stored credential is unreadable.
+  # -- Seals cookies, agents' keys and connector credentials, at least 16
+  # characters. Required unless existingSecret.name is set. Back it up with the
+  # database: without it every stored credential is unreadable.
   secretKey: ""
-  # Bearer token for /metrics, at least 16 characters. Empty turns /metrics off.
+  # -- Bearer token for /metrics, at least 16 characters. Empty turns /metrics off.
   metricsToken: ""
-  # Use an existing Secret instead. When name is set, the values above are ignored.
   existingSecret:
+    # -- Use this existing Secret instead. When set, the values above are ignored.
     name: ""
-    # Keys in the existing Secret holding the credentials.
+    # -- Key in the existing Secret holding the service key.
     serviceSecretKey: KEERA_AGENTS_SERVICE_KEY
+    # -- Key in the existing Secret holding the secret key.
     secretSecretKey: KEERA_AGENTS_SECRET_KEY
-    # Key holding the metrics token. Empty turns /metrics off.
+    # -- Key in the existing Secret holding the metrics token. Empty turns /metrics off.
     metricsTokenSecretKey: ""
 
-# The address browsers and chat services reach keera-agents on, without a path,
+# -- The address browsers and chat services reach keera-agents on, without a path,
 # such as https://agents.example.ch. Set it on Keera Gateway as KEERA_AGENTS_URL too.
 publicUrl: ""
 
 gateway:
-  # Required. Keera Gateway as a browser reaches it, such as https://keera.example.ch.
+  # -- Required. Keera Gateway as a browser reaches it, such as https://keera.example.ch.
   url: ""
-  # Keera Gateway as keera-agents and agents reach it, such as
+  # -- Keera Gateway as keera-agents and agents reach it, such as
   # http://keera-gateway.keera-gateway.svc. Empty is gateway.url, which the
   # agents' NetworkPolicy blocks unless agents.networkPolicy.extraEgress allows it.
   internalUrl: ""
 
-# Hosts inside the network connectors may reach, such as gitlab.internal, or
+# -- Hosts inside the network connectors may reach, such as gitlab.internal, or
 # "all". Empty is "none": public addresses only.
 upstreamPrivate: ""
-# Addresses connectors never reach. Empty keeps the default of loopback and
+# -- Addresses connectors never reach. Empty keeps the default of loopback and
 # cloud metadata, "none" turns it off.
 upstreamDeny: ""
 
-# debug, info, warn or error. Empty is info.
+# -- debug, info, warn or error. Empty is info.
 logLevel: ""
-# text or json. Empty is text.
+# -- text or json. Empty is text.
 logFormat: ""
 
-# The longest a task may run, such as 30m. Empty is 30m.
+# -- The longest a task may run, such as 30m. Empty is 30m.
 taskTimeout: ""
-# How often watched folders are checked, at least 30s. Empty is 5m.
+# -- How often watched folders are checked, at least 30s. Empty is 5m.
 watchInterval: ""
 
 # What machine time costs, billed through the gateway. Empty is free.
 # See https://github.com/bespinian/keera-agents/blob/main/docs/billing.md.
 prices:
+  # -- Price of a CPU hour. Empty is free.
   cpuHour: ""
+  # -- Price of a GiB hour of memory. Empty is free.
   memoryGiBHour: ""
+  # -- Price of a GiB month of disk. Empty is free.
   diskGiBMonth: ""
 
-# Further environment variables of the keera-agents container.
+# -- Further environment variables of the keera-agents container.
 extraEnvVars: []
 # - name: HTTPS_PROXY
 #   value: http://proxy.internal:3128
@@ -69,64 +76,68 @@ extraEnvVars: []
 # per agent and workspace in agents.namespace.
 agents:
   namespace:
-    # Where agents run. Empty is "<release namespace>-sandbox". Agents need a
+    # -- Where agents run. Empty is "<release namespace>-sandbox". Agents need a
     # namespace of their own: whoever reads pods there reads runtime tokens.
     name: ""
-    # Create the namespace. It is kept on uninstall, since it holds the agents'
+    # -- Create the namespace. It is kept on uninstall, since it holds the agents'
     # workspaces.
     create: true
+    # -- Labels of the namespace. The default makes agents' pods meet the
+    # restricted Pod Security Standard.
     labels:
-      # Agents' pods meet the restricted Pod Security Standard.
       pod-security.kubernetes.io/enforce: restricted
+    # -- Annotations of the namespace.
     annotations: {}
 
   image:
+    # -- Image of the agents.
     repository: ghcr.io/bespinian/keera-agent
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
-  # Suspend an agent with nothing to do for this long, "0" never. Empty is 15m.
+  # -- Suspend an agent with nothing to do for this long, "0" never. Empty is 15m.
   idleSuspend: ""
 
   # RuntimeClasses of the isolation tiers. A tier without one cannot be used.
   runtimeClasses:
-    # Empty is the cluster's default runtime.
+    # -- RuntimeClass of the standard tier. Empty is the cluster's default runtime.
     standard: ""
-    # gVisor, such as gvisor.
+    # -- RuntimeClass of the isolated tier, gVisor, such as gvisor.
     isolated: ""
-    # Kata, such as kata.
+    # -- RuntimeClass of the vm tier, Kata, such as kata.
     vm: ""
-  # The weakest tier agents may choose: standard, isolated or vm. Empty is standard.
+  # -- The weakest tier agents may choose: standard, isolated or vm. Empty is standard.
   minIsolation: ""
 
-  # The largest machine one agent may ask for. Empty is 8 CPUs, 32Gi of memory
-  # and 100Gi of disk.
+  # -- The most CPUs one agent may ask for. Empty is 8.
   maxCpu: ""
+  # -- The most memory one agent may ask for. Empty is 32Gi.
   maxMemory: ""
+  # -- The most disk one agent may ask for. Empty is 100Gi.
   maxDisk: ""
 
-  # StorageClass workspaces are provisioned from. Empty is the cluster's default.
+  # -- StorageClass workspaces are provisioned from. Empty is the cluster's default.
   storageClass: ""
-  # ServiceAccount agents run as, in agents.namespace. Its token is never
+  # -- ServiceAccount agents run as, in agents.namespace. Its token is never
   # mounted. Empty is the namespace's default.
   serviceAccount: ""
-  # Secrets in agents.namespace to pull the agent and workspace images with,
+  # -- Secrets in agents.namespace to pull the agent and workspace images with,
   # as names or as {name: ...} like the top-level imagePullSecrets.
   imagePullSecrets: []
-  # Run standard-tier pods in a user namespace of their own. Needs Kubernetes
+  # -- Run standard-tier pods in a user namespace of their own. Needs Kubernetes
   # 1.33 and a container runtime that supports it.
   userNamespaces: false
 
-  # The Role keera-agents needs in agents.namespace.
   rbac:
+    # -- Create the Role keera-agents needs in agents.namespace.
     create: true
 
-  # A default-deny NetworkPolicy for agents.namespace. It allows DNS, Keera
-  # Gateway and keera-agents, and lets keera-agents reach workspaces. The CNI
-  # must enforce it.
   networkPolicy:
+    # -- Create a default-deny NetworkPolicy for agents.namespace. It allows DNS,
+    # Keera Gateway and keera-agents, and lets keera-agents reach workspaces. The
+    # CNI must enforce it.
     enabled: true
-    # Where DNS answers.
+    # -- Where DNS answers.
     dns:
       namespaceSelector:
         matchLabels:
@@ -134,15 +145,16 @@ agents:
       podSelector:
         matchLabels:
           k8s-app: kube-dns
-    # Where Keera Gateway's pods run.
     gateway:
-      # Empty is the release namespace.
+      # -- Namespace Keera Gateway's pods run in. Empty is the release namespace.
       namespace: ""
+      # -- Selects Keera Gateway's pods.
       podSelector:
         matchLabels:
           app.kubernetes.io/name: keera-gateway
+      # -- Port Keera Gateway's pods listen on.
       port: 8080
-    # Further egress rules, such as an internal package proxy.
+    # -- Further egress rules, such as an internal package proxy.
     extraEgress: []
     # - to:
     #     - ipBlock:
@@ -152,46 +164,49 @@ agents:
 
 workspaces:
   image:
+    # -- Image of the workspaces.
     repository: ghcr.io/bespinian/keera-workspace
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag whose default is the chart appVersion.
     tag: ""
-  # Suspend a workspace nobody is connected to for this long, "0" never. Empty is 2h.
+  # -- Suspend a workspace nobody is connected to for this long, "0" never. Empty is 2h.
   idleSuspend: ""
 
 # The keera-agents control plane: panel, API, webhooks and the runtime API.
 controlPlane:
-  # Several replicas are fine, periodic work is coordinated in the database.
+  # -- Several replicas are fine, periodic work is coordinated in the database.
   replicaCount: 1
 
   image:
+    # -- Image of keera-agents.
     repository: ghcr.io/bespinian/keera-agents
+    # -- Image pull policy.
     pullPolicy: IfNotPresent
-    # Overrides the image tag whose default is the chart appVersion.
+    # -- Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
-  # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
-  # Its token is always mounted: keera-agents needs it to manage agents through the Kubernetes API.
+  # Its token is always mounted: keera-agents needs it to manage agents through
+  # the Kubernetes API.
   serviceAccount:
-    # Specifies whether a service account should be created.
+    # -- Create a ServiceAccount.
     create: true
-    # Annotations to add to the service account.
+    # -- Annotations of the ServiceAccount.
     annotations: {}
-    # The name of the service account to use.
-    # If not set and create is true, a name is generated using the fullname template.
+    # -- Name of the ServiceAccount. Empty is the full name when create is true,
+    # and the namespace's default otherwise.
     name: ""
 
-  # This is for setting Kubernetes Annotations to a Pod.
-  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+  # -- Annotations of the pods.
   podAnnotations: {}
-  # This is for setting Kubernetes Labels to a Pod.
-  # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+  # -- Labels of the pods.
   podLabels: {}
 
+  # -- Security context of the pods.
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
 
+  # -- Security context of the keera-agents container.
   securityContext:
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
@@ -199,32 +214,37 @@ controlPlane:
       drop:
         - ALL
 
-  # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
-    # This sets the service type more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
+    # -- Type of the Service.
     type: ClusterIP
-    # This sets the ports more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/#field-spec-ports
+    # -- Port of the Service.
     port: 80
 
   # Expose keera-agents through an Ingress. Keep /runtime and /metrics inside
   # the cluster, and let Upgrade requests through for workspaces.
   # See https://kubernetes.io/docs/concepts/services-networking/ingress/
   ingress:
+    # -- Create an Ingress.
     enabled: false
+    # -- IngressClass of the Ingress.
     ingressClassName: ""
+    # -- Annotations of the Ingress.
     annotations: {}
+    # -- Labels of the Ingress.
     labels: {}
-    # Empty matches any host.
+    # -- Host name of the Ingress. Empty matches any host.
     hostname: ""
+    # -- Path of the Ingress.
     path: /
+    # -- Path type of the Ingress.
     pathType: Prefix
-    # TLS for hostname and extraHosts from the Secret <fullname>-tls.
+    # -- TLS for hostname and extraHosts from the Secret <fullname>-tls.
     tls: false
-    # Further host names, path and pathType default to the ones above.
+    # -- Further host names, path and pathType default to the ones above.
     extraHosts: []
     # - name: agents.example.com
     #   path: /
-    # Further TLS entries.
+    # -- Further TLS entries.
     extraTls: []
     # - hosts:
     #     - agents.example.com
@@ -233,18 +253,21 @@ controlPlane:
   # Expose keera-agents through a Gateway API HTTPRoute, which needs the Gateway
   # API CRDs and a controller. See https://gateway-api.sigs.k8s.io/guides/
   httpRoute:
+    # -- Create an HTTPRoute.
     enabled: false
+    # -- Annotations of the HTTPRoute.
     annotations: {}
+    # -- Labels of the HTTPRoute.
     labels: {}
-    # Gateways the route attaches to.
+    # -- Gateways the route attaches to.
     parentRefs: []
     # - name: gateway
     #   namespace: gateway
     #   sectionName: https
-    # Empty matches any host.
+    # -- Host names of the HTTPRoute. Empty matches any host.
     hostnames: []
-    # The backend is always the keera-agents service; each rule may set
-    # matches, filters and timeouts.
+    # -- Rules of the HTTPRoute. The backend is always the keera-agents service;
+    # each rule may set matches, filters and timeouts.
     rules:
       - matches:
           - path:
@@ -254,111 +277,133 @@ controlPlane:
         # timeouts:
         #   request: 30s
 
+  # -- Resources of the keera-agents container.
   resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 100m
-    #   memory: 128Mi
     # requests:
     #   cpu: 100m
     #   memory: 128Mi
+    # limits:
+    #   memory: 128Mi
 
-  # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+  # See https://kubernetes.io/docs/concepts/workloads/autoscaling/
   autoscaling:
+    # -- Create a HorizontalPodAutoscaler, which then sets the replicas.
     enabled: false
+    # -- The fewest replicas.
     minReplicas: 1
+    # -- The most replicas.
     maxReplicas: 100
+    # -- CPU utilization to scale at.
     targetCPUUtilizationPercentage: 80
     # targetMemoryUtilizationPercentage: 80
 
-  # Additional volumes on the output Deployment definition.
+  # -- Further volumes of the pods.
   volumes: []
     # - name: foo
     #   secret:
     #     secretName: mysecret
     #     optional: false
 
-  # Additional volumeMounts on the output Deployment definition.
+  # -- Further volume mounts of the keera-agents container.
   volumeMounts: []
     # - name: foo
     #   mountPath: "/etc/foo"
     #   readOnly: true
 
+  # -- Node selector of the pods.
   nodeSelector: {}
 
+  # -- Tolerations of the pods.
   tolerations: []
 
+  # -- Affinity of the pods.
   affinity: {}
 
 database:
-  # "internal" deploys a single PostgreSQL instance as part of this release,
+  # -- "internal" deploys a single PostgreSQL instance as part of this release,
   # "external" uses database.external.
   type: "internal"
   external:
-    # Connection URL, such as postgres://keera:...@db:5432/keera_agents.
+    # -- Connection URL, such as postgres://keera:...@db:5432/keera_agents.
     # Required unless existingSecret is set.
     url: ""
-    # Use an existing Secret for the URL instead.
+    # -- Use an existing Secret for the URL instead.
     existingSecret: ""
-    # Key in the existing Secret holding the URL.
+    # -- Key in the existing Secret holding the URL.
     existingSecretUrlKey: url
   internal:
     image:
+      # -- Image of PostgreSQL.
       repository: docker.io/library/postgres
+      # -- Tag of the PostgreSQL image.
       tag: "18"
+      # -- Image pull policy.
       pullPolicy: IfNotPresent
-    # Superuser created on first start, also owner of the database below.
+    # -- Superuser created on first start, also owner of the database below.
     username: keera
+    # -- Database created on first start.
     database: keera_agents
-    # Password of the superuser. Required unless existingSecret is set.
+    # -- Password of the superuser. Required unless existingSecret is set.
     password: ""
-    # Use an existing Secret for the password instead of creating one.
+    # -- Use an existing Secret for the password instead of creating one.
     existingSecret: ""
-    # Key in the existing Secret holding the password.
+    # -- Key in the existing Secret holding the password.
     existingSecretPasswordKey: password
-    # The official image runs PostgreSQL as uid/gid 999.
+    # -- Security context of the pod. The official image runs PostgreSQL as
+    # uid/gid 999.
     podSecurityContext:
       runAsUser: 999
       runAsGroup: 999
       fsGroup: 999
       fsGroupChangePolicy: OnRootMismatch
+    # -- Security context of the PostgreSQL container.
     securityContext:
       allowPrivilegeEscalation: false
       capabilities:
         drop:
           - ALL
+    # -- Resources of the PostgreSQL container.
     resources: {}
       # requests:
       #   cpu: 100m
       #   memory: 256Mi
+    # -- Liveness probe timings.
     livenessProbe:
       initialDelaySeconds: 30
       periodSeconds: 10
       timeoutSeconds: 5
       failureThreshold: 6
+    # -- Readiness probe timings.
     readinessProbe:
       initialDelaySeconds: 5
       periodSeconds: 10
       timeoutSeconds: 5
       failureThreshold: 3
-    # Size limit of /dev/shm, PostgreSQL uses it for shared_buffers.
+    # -- Size limit of /dev/shm, PostgreSQL uses it for shared_buffers.
     shmSizeLimit: 512Mi
+    # -- Further environment variables of the PostgreSQL container.
     extraEnvVars: []
+    # -- Annotations of the pod.
     podAnnotations: {}
+    # -- Labels of the pod.
     podLabels: {}
+    # -- Node selector of the pod.
     nodeSelector: {}
+    # -- Tolerations of the pod.
     tolerations: []
+    # -- Affinity of the pod.
     affinity: {}
     persistence:
-      # If disabled, data is stored in an emptyDir and lost when the pod is deleted.
+      # -- Store data on a PersistentVolumeClaim. If disabled, data is stored in
+      # an emptyDir and lost when the pod is deleted.
       enabled: true
-      # Use an existing PersistentVolumeClaim instead of creating one.
+      # -- Use an existing PersistentVolumeClaim instead of creating one.
       existingClaim: ""
-      # Empty uses the cluster default StorageClass, "-" disables dynamic provisioning.
+      # -- Empty uses the cluster default StorageClass, "-" disables dynamic provisioning.
       storageClass: ""
+      # -- Access mode of the PersistentVolumeClaim.
       accessMode: ReadWriteOnce
+      # -- Size of the PersistentVolumeClaim.
       size: 1Gi
+      # -- Annotations of the PersistentVolumeClaim.
       annotations: {}
