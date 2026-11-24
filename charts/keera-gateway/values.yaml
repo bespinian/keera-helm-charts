@@ -270,7 +270,7 @@ database:
     # -- Superuser created on first start, also owner of the database below.
     username: keera
     # -- Database created on first start.
-    database: keera
+    database: keera_gateway
     # -- Password of the superuser. Required unless existingSecret is set.
     password: ""
     # -- Use an existing Secret for the password instead of creating one.

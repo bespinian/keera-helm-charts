@@ -82,7 +82,7 @@ The operator role is never assignable through the panel, so it comes from `oidc.
 | credentials.operatorKey | string | `""` | Operator key. Required unless existingSecret.name is set. |
 | credentials.secretKey | string | `""` | Secret key. Required unless existingSecret.name is set. |
 | database.internal.affinity | object | `{}` | Affinity of the pod. |
-| database.internal.database | string | `"keera"` | Database created on first start. |
+| database.internal.database | string | `"keera_gateway"` | Database created on first start. |
 | database.internal.existingSecret | string | `""` | Use an existing Secret for the password instead of creating one. |
 | database.internal.existingSecretPasswordKey | string | `"password"` | Key in the existing Secret holding the password. |
 | database.internal.extraEnvVars | list | `[]` | Further environment variables of the PostgreSQL container. |
