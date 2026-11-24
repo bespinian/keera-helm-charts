@@ -128,6 +128,24 @@ password
 {{- end }}
 
 {{/*
+Name of the Secret holding the external database URL
+*/}}
+{{- define "keera-agents.database.urlSecretName" -}}
+{{- default (include "keera-agents.database.fullname" .) .Values.database.external.existingSecret }}
+{{- end }}
+
+{{/*
+Key in the Secret holding the external database URL
+*/}}
+{{- define "keera-agents.database.urlSecretKey" -}}
+{{- if .Values.database.external.existingSecret }}
+{{- .Values.database.external.existingSecretUrlKey }}
+{{- else -}}
+url
+{{- end }}
+{{- end }}
+
+{{/*
 Escapes a URL user or path segment. urlquery escapes for a query string, where a space becomes "+"
 */}}
 {{- define "keera-agents.database.urlEscape" -}}

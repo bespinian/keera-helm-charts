@@ -1,8 +1,8 @@
 # Keera Agents Helm Chart
 
-keera-agents Helm chart for Kubernetes
+Installs Keera Agents in a Kubernetes cluster.
 
-**Homepage:** <https://keera.ch>
+**Homepage:** <https://keera.ch/en/agents>
 
 Keera Agents runs AI agents on top of [Keera Gateway](../keera-gateway). The chart installs the control plane with the Kubernetes driver: each agent and workspace runs as a StatefulSet of its own in a separate namespace.
 

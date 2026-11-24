@@ -1,7 +1,7 @@
 apiVersion: v2
 name: keera-gateway
 version: 0.1.3
-description: keera-gateway Helm chart for Kubernetes
+description: Installs Keera Gateway in a Kubernetes cluster.
 type: application
 home: https://keera.ch/en/gateway
 sources:

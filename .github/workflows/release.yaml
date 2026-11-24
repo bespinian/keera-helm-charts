@@ -27,13 +27,6 @@ jobs:
         with:
           version: v4.0.5
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Login to Helm OCI Registry
         env:
           HELM_PASSWORD: ${{ secrets.GITHUB_TOKEN }}

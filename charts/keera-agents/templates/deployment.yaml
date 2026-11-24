@@ -123,8 +123,8 @@ spec:
             - name: KEERA_AGENTS_DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ default (include "keera-agents.database.fullname" .) .Values.database.external.existingSecret }}
-                  key: {{ ternary .Values.database.external.existingSecretUrlKey "url" (not (empty .Values.database.external.existingSecret)) }}
+                  name: {{ include "keera-agents.database.urlSecretName" . }}
+                  key: {{ include "keera-agents.database.urlSecretKey" . }}
             {{- end }}
             - name: KEERA_AGENTS_GATEWAY_URL
               value: {{ .Values.gateway.url | quote }}

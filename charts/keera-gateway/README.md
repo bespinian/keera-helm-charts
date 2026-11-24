@@ -1,6 +1,6 @@
 # Keera Gateway Helm Chart
 
-keera-gateway Helm chart for Kubernetes
+Installs Keera Gateway in a Kubernetes cluster.
 
 **Homepage:** <https://keera.ch/en/gateway>
 
