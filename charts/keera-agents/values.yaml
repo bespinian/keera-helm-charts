@@ -352,10 +352,13 @@ database:
     # -- Security context of the pod. The official image runs PostgreSQL as
     # uid/gid 999.
     podSecurityContext:
+      runAsNonRoot: true
       runAsUser: 999
       runAsGroup: 999
       fsGroup: 999
       fsGroupChangePolicy: OnRootMismatch
+      seccompProfile:
+        type: RuntimeDefault
     # -- Security context of the PostgreSQL container.
     securityContext:
       allowPrivilegeEscalation: false

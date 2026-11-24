@@ -26,7 +26,7 @@ This installs the gateway together with the internal PostgreSQL database.
 
    ```sh
    helm upgrade --install keera-gateway oci://ghcr.io/bespinian/keera-helm-charts/keera-gateway \
-     --version 0.1.3 \
+     --version 0.1.4 \
      --namespace keera-gateway \
      --set credentials.existingSecret.name=keera-gateway-credentials \
      --set database.internal.existingSecret=keera-gateway-credentials
@@ -100,7 +100,7 @@ The operator role is never assignable through the panel, so it comes from `oidc.
 | database.internal.persistence.storageClass | string | `""` | Empty uses the cluster default StorageClass, "-" disables dynamic provisioning. |
 | database.internal.podAnnotations | object | `{}` | Annotations of the pod. |
 | database.internal.podLabels | object | `{}` | Labels of the pod. |
-| database.internal.podSecurityContext | object | `{"fsGroup":999,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":999,"runAsUser":999}` | Security context of the pod. The official image runs PostgreSQL as uid/gid 999. |
+| database.internal.podSecurityContext | object | `{"fsGroup":999,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":999,"runAsNonRoot":true,"runAsUser":999,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context of the pod. The official image runs PostgreSQL as uid/gid 999. |
 | database.internal.readinessProbe | object | `{"failureThreshold":3,"initialDelaySeconds":5,"periodSeconds":10,"timeoutSeconds":5}` | Readiness probe timings. |
 | database.internal.resources | object | `{}` | Resources of the PostgreSQL container. |
 | database.internal.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Security context of the PostgreSQL container. |
@@ -135,10 +135,10 @@ The operator role is never assignable through the panel, so it comes from `oidc.
 | gateway.nodeSelector | object | `{}` | Node selector of the pods. |
 | gateway.podAnnotations | object | `{}` | Annotations of the pods. |
 | gateway.podLabels | object | `{}` | Labels of the pods. |
-| gateway.podSecurityContext | object | `{}` | Security context of the pods. |
+| gateway.podSecurityContext | object | `{"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context of the pods. |
 | gateway.replicaCount | int | `1` | Number of replicas. |
 | gateway.resources | object | `{}` | Resources of the gateway container. |
-| gateway.securityContext | object | `{}` | Security context of the gateway container. |
+| gateway.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Security context of the gateway container. |
 | gateway.service.port | int | `80` | Port of the Service. |
 | gateway.service.type | string | `"ClusterIP"` | Type of the Service. |
 | gateway.serviceAccount.annotations | object | `{}` | Annotations of the ServiceAccount. |

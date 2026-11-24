@@ -30,7 +30,7 @@ This installs keera-agents together with the internal PostgreSQL database, in th
 
    ```sh
    helm upgrade --install keera-agents oci://ghcr.io/bespinian/keera-helm-charts/keera-agents \
-     --version 0.1.3 \
+     --version 0.1.4 \
      --namespace keera-agents \
      --set publicUrl=https://agents.example.ch \
      --set gateway.url=https://keera.example.ch \
@@ -181,7 +181,7 @@ Back up the database, `KEERA_AGENTS_SECRET_KEY` and the agents' workspaces, the 
 | database.internal.persistence.storageClass | string | `""` | Empty uses the cluster default StorageClass, "-" disables dynamic provisioning. |
 | database.internal.podAnnotations | object | `{}` | Annotations of the pod. |
 | database.internal.podLabels | object | `{}` | Labels of the pod. |
-| database.internal.podSecurityContext | object | `{"fsGroup":999,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":999,"runAsUser":999}` | Security context of the pod. The official image runs PostgreSQL as uid/gid 999. |
+| database.internal.podSecurityContext | object | `{"fsGroup":999,"fsGroupChangePolicy":"OnRootMismatch","runAsGroup":999,"runAsNonRoot":true,"runAsUser":999,"seccompProfile":{"type":"RuntimeDefault"}}` | Security context of the pod. The official image runs PostgreSQL as uid/gid 999. |
 | database.internal.readinessProbe | object | `{"failureThreshold":3,"initialDelaySeconds":5,"periodSeconds":10,"timeoutSeconds":5}` | Readiness probe timings. |
 | database.internal.resources | object | `{}` | Resources of the PostgreSQL container. |
 | database.internal.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}` | Security context of the PostgreSQL container. |
